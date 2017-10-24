@@ -14,10 +14,11 @@ import os
 import unittest
 
 import numpy as np
+from math import sqrt
 
 from obspy.signal.rotate import (rotate_lqt_zne, rotate_ne_rt, rotate_rt_ne,
                                  rotate_zne_lqt, _dip_azimuth2zne_base_vector,
-                                 rotate2zne)
+                                 rotate2zne, rotate_uvw_zne, rotate_zne_uvw)
 
 
 class RotateTestCase(unittest.TestCase):
@@ -425,6 +426,25 @@ class RotateTestCase(unittest.TestCase):
         self.assertEqual(success_count, 3888)
         # Also the linearly dependent variants.
         self.assertEqual(failure_count, 432)
+
+    def test_uvw_to_zne(self):
+        u = np.array([1])
+        v = np.array([2])
+        w = np.array([3])
+        (z, n, e) = rotate_uvw_zne(u, v, w, 0, 0)
+        self.assertAlmostEqual(z[0], 2 * sqrt(3))
+        self.assertAlmostEqual(n[0], -1 / sqrt(2))
+        self.assertAlmostEqual(e[0], sqrt(3/2))
+
+    def test_uvw_to_zne_to_uvw(self):
+        u = np.array([1])
+        v = np.array([2])
+        w = np.array([3])
+        (z, n, e) = rotate_uvw_zne(u, v, w, 0, 0)
+        (u2, v2, w2) = rotate_zne_uvw(z, n, e, 0, 0)
+        self.assertAlmostEqual(u[0], u2[0])
+        self.assertAlmostEqual(v[0], v2[0])
+        self.assertAlmostEqual(w[0], w2[0])
 
     def test_with_real_data(self):
         # Filtered and downsampled test data with two co-located

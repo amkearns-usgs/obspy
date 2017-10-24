@@ -2631,9 +2631,13 @@ seismometer_correction_simulation.html#using-a-resp-file>`_.
             func = "rotate_zne_lqt"
         elif method == "LQT->ZNE":
             func = "rotate_lqt_zne"
+        elif method == "ZNE->UVW":
+            func = "rotate_zne_uvw"
+        elif method == "UVW->ZNE":
+            func = "rotate_uvw_zne"
         else:
             msg = ("Method has to be one of ('->ZNE', 'NE->RT', 'RT->NE', "
-                   "'ZNE->LQT', or 'LQT->ZNE').")
+                   "'ZNE->LQT', 'LQT->ZNE', 'ZNE->UVW', or 'UVW-ZNE').")
             raise ValueError(msg)
         # Retrieve function call from entry points
         func = _get_function_from_entry_point("rotate", func)

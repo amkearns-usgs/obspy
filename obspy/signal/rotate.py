@@ -21,7 +21,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 from future.builtins import *  # NOQA
 
-from math import cos, sin, radians
+from math import cos, sin, radians, sqrt
 
 import numpy as np
 
@@ -130,6 +130,74 @@ def rotate_lqt_zne(l, q, t, ba, inc):
     e = -l * sin(inc) * sin(ba) + q * cos(inc) * sin(ba) - t * cos(ba)
     return z, n, e
 
+def rotate_uvw_zne(u, v, w, ba, inc):
+    """
+    Rotates all components of a seismogram.
+
+    This transformation converts Galperin-coordinate systems (i.e., STS-2)
+    into the traditional Z, N, E format used by many groups. These refer to
+    three sensors at an oblique angle to the Z, N, E coordinate systems,
+    specifically using the convention of an angle arctan(sqrt(2)) against the
+    vertical axis.
+
+    The rotation matrix looks like this, applied to a vector (U, V, W)
+        [      -2,        1,        1]
+    k * [       0,  sqrt(3), -sqrt(3)]
+        [ sqrt(2),  sqrt(2),  sqrt(2)]
+
+    where k is 1 / sqrt(6)
+    The resulting vector from this calculation would have the form (E, N, Z).
+
+    :type u: :class:`~numpy.ndarray`
+    :param u: Data of the oblique component U of the seismogram.
+    :type n: :class:`~numpy.ndarray`
+    :param n: Data of the oblique component V of the seismogram.
+    :type e: :class:`~numpy.ndarray`
+    :param e: Data of the oblique component W of the seismogram.
+
+    :return: Z-, N- and E-component of seismogram, in that order.
+    """
+    if len(u) != len(v) or len(u) != len(w):
+        raise TypeError("U, V, and W components have different length!?!")
+    if ba < 0 or ba > 360:
+        raise ValueError("Back Azimuth should be between 0 and 360 degrees!")
+    if inc < 0 or inc > 360:
+        raise ValueError("Inclination should be between 0 and 360 degrees!")
+    ba = radians(ba)
+    inc = radians(inc)
+    rt2 = sqrt(2)
+    rt3 = sqrt(3)
+    rt6 = sqrt(6)
+    z = (rt2 * u + rt2 * v + rt2 * w) / rt6
+    n = (rt3 * v - rt3 * w) / rt6
+    e = (-2 * u + v + w) / rt6
+    return z, n, e
+
+def rotate_zne_uvw(z, n, e, ba, inc):
+    """
+    Rotates all components of a seismogram.
+
+    The components will be rotated from ZNE to UVW (Galperin).
+    This is the inverse transformation of the transformation described
+    in :func:`rotate_uvw_zne`.
+    Components are returned in order U, V, Z
+    """
+    if len(z) != len(n) or len(z) != len(e):
+        raise TypeError("U, V, and W components have different length!?!")
+    if ba < 0 or ba > 360:
+        raise ValueError("Back Azimuth should be between 0 and 360 degrees!")
+    if inc < 0 or inc > 360:
+        raise ValueError("Inclination should be between 0 and 360 degrees!")
+    ba = radians(ba)
+    inc = radians(inc)
+    am = -2 * sqrt(6)
+    cm = 2 * sqrt(3)
+    dm = sqrt(6)
+    em = 3 * sqrt(2)
+    u = (am * e + cm * z) / 6
+    v = (dm * e + em * n + cm * z) / 6
+    w = (dm * e - em * n + cm * z) / 6
+    return u, v, w
 
 def _dip_azimuth2zne_base_vector(dip, azimuth):
     """
