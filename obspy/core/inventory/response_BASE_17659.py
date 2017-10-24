@@ -816,7 +816,7 @@ class Response(ComparingObject):
                     sampling_rate = (stage.decimation_input_sample_rate /
                                      stage.decimation_factor)
                     break
-                except Exception:
+                except:
                     continue
             else:
                 sampling_rate = None
@@ -1662,42 +1662,6 @@ class Response(ComparingObject):
         # extract paz
         paz = self.get_paz()
         return paz_to_sacpz_string(paz, self.instrument_sensitivity)
-
-    @staticmethod
-    def from_paz(zeros, poles, stage_gain,
-                 stage_gain_frequency=1.0, input_units='VOLTS',
-                 output_units='M/S', normalization_frequency=None,
-                 pz_transfer_function_type='LAPLACE (RADIANS/SECOND)',
-                 normalization_factor=1.0):
-        """
-        Takes in lists of complex poles and zeros and returns a Response with
-        those values defining its only stage.
-        :type zeros: list of complex
-        :param zeros: All zeros of the response to be defined.
-        :type poles: list of complex
-        :param poles: All poles of the response to be defined.
-        :type stage_gain: double
-        :param stage_gain: The gain value of the response [sensitivity]
-
-        Most of the optional parameters defined here are from
-        :class:`~obspy.core.inventory.response.PolesZerosResponseStage`
-        Note that if no value is specified for the normalization_frequency
-        parameter, the value assigned to stage_gain_frequency will be used.
-        :returns: new Response instance with given P-Z values
-        """
-        if normalization_frequency is None:
-            normalization_frequency = stage_gain_frequency
-        sequence = 1  # must be stage 1 because paz defines entire response
-        pzstage = PolesZerosResponseStage(
-                    sequence, stage_gain,
-                    stage_gain_frequency, input_units, output_units,
-                    pz_transfer_function_type, normalization_frequency, zeros,
-                    poles, normalization_factor)
-        sensitivity = InstrumentSensitivity(stage_gain, stage_gain_frequency,
-                                            input_units, output_units)
-        resp = Response(instrument_sensitivity=sensitivity,
-                        response_stages=[pzstage])
-        return resp
 
 
 def paz_to_sacpz_string(paz, instrument_sensitivity):
