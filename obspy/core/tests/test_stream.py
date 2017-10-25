@@ -1947,6 +1947,22 @@ class StreamTestCase(unittest.TestCase):
         st[1].stats.starttime += 1
         self.assertRaises(ValueError, st.rotate, method='ZNE->LQT')
 
+    def test_uvw_to_zne_with_real_data(self):
+        filename = self.data_path + "/data/testDataUVW.seed"
+        st = read(filename)
+        stUVW = Stream(traces=[st.select('VHU')[0],
+                               st.select('VHV')[0], st.select('VHW')[0]])
+        for tr in st:
+            if tr.stats.channel in ['VHU','VHV','VHW']:
+                st.remove(tr)
+            elif tr.stats.channel == 'VH1':
+                tr.stats.channel='VHN'
+            elif tr.stats.channel=='VH2':
+                tr.stats.channel='VHE'
+        st.rotate('ZNE->UVW')
+        for pair in zip(st, stUVW):
+            self.assertTrue(np.allclose(pair[0].data,pair[1].data))
+
     def test_plot(self):
         """
         Tests plot method if matplotlib is installed

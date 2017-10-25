@@ -16,6 +16,7 @@ import unittest
 import numpy as np
 from math import sqrt
 
+from obspy.core.stream import read
 from obspy.signal.rotate import (rotate_lqt_zne, rotate_ne_rt, rotate_rt_ne,
                                  rotate_zne_lqt, _dip_azimuth2zne_base_vector,
                                  rotate2zne, rotate_uvw_zne, rotate_zne_uvw)
