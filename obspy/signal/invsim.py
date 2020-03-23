@@ -355,7 +355,8 @@ def corn_freq_2_paz(fc, damp=0.707):
     return {'poles': poles, 'zeros': [0j, 0j], 'gain': 1, 'sensitivity': 1.0}
 
 
-def paz_to_freq_resp(poles, zeros, scale_fac, t_samp, nfft, freq=False):
+def paz_to_freq_resp(poles, zeros, scale_fac, t_samp=None, nfft=None,
+                     frequencies=None, freq=False):
     """
     Convert Poles and Zeros (PAZ) to frequency response.
 
@@ -371,19 +372,48 @@ def paz_to_freq_resp(poles, zeros, scale_fac, t_samp, nfft, freq=False):
     :param t_samp: Sampling interval in seconds
     :type nfft: int
     :param nfft: Number of FFT points of signal which needs correction
+    :type frequencies: list of float
+    :param frequencies: Discrete frequencies to get resp values for.
+    :type freq: bool
+    :param freq: If true, returns tuple of resp result with freq array input (i.e., x-values)
     :rtype: :class:`numpy.ndarray` complex128
     :return: Frequency response of PAZ of length nfft
     """
-    n = nfft // 2
     b, a = scipy.signal.ltisys.zpk2tf(zeros, poles, scale_fac)
     # a has to be a list for the scipy.signal.freqs() call later but zpk2tf()
     # strangely returns it as an integer.
     if not isinstance(a, np.ndarray) and a == 1.0:
         a = [1.0]
-    fy = 1 / (t_samp * 2.0)
-    # start at zero to get zero for offset / DC of fft
-    f = np.linspace(0, fy, n + 1)
-    _w, h = scipy.signal.freqs(b, a, f * 2 * np.pi)
+    # this turns the paz values into an IIR specification, so we will
+    # use the IIR conversion method to produce the response
+    return iir_to_freq_resp(b, a, t_samp, nfft, frequencies, freq)
+
+
+def iir_to_freq_resp(numer, denom, t_samp=None, nfft=None,
+                     frequencies=None, freq=False):
+    if frequencies is None:
+        n = nfft // 2
+        fy = 1 / (t_samp * 2.0)
+        # start at zero to get zero for offset / DC of fft
+        f = np.linspace(0, fy, n + 1)
+    else:
+        f = frequencies
+    _w, h = scipy.signal.freqs(numer, denom, f * 2 * np.pi)
+    if freq:
+        return h, f
+    return h
+
+
+def fir_to_freq_resp(numer, denom, t_samp=None, nfft=None,
+                         frequencies=None, freq=False):
+    if frequencies is None:
+        n = nfft // 2
+        fy = 1 / (t_samp * 2.0)
+        # start at zero to get zero for offset / DC of fft
+        f = np.linspace(0, fy, n + 1)
+    else:
+        f = frequencies
+    _w, h = scipy.signal.freqz(numer, denom, f * 2 * np.pi)
     if freq:
         return h, f
     return h
@@ -758,7 +788,7 @@ def estimate_wood_anderson_amplitude_using_response(response, amplitude,
     """
     freq = 1.0 / (2 * timespan)
     wa_ampl = amplitude / 2.0  # half peak to peak amplitude
-    response = response.get_evalresp_response_for_frequencies(
+    response = response.get_response(
         [freq], output="VEL", start_stage=None, end_stage=None)[0]
     response_amplitude = np.absolute(response)
     wa_ampl /= response_amplitude

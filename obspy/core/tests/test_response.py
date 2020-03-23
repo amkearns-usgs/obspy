@@ -49,6 +49,184 @@ class ResponseTestCase(unittest.TestCase):
     def tearDown(self):
         np.seterr(**self.nperr)
 
+    def test_get_response(self):
+        unit = "VEL"
+        filename = "IRIS_single_channel_with_response"
+
+        xml_filename = os.path.join(self.data_dir,
+                                    filename + os.path.extsep + "xml")
+        inv = read_inventory(xml_filename)
+        resp = inv[0][0][0].response
+
+        freqs = np.logspace(-2, 2, 1000)
+
+        # PAZ stage.
+        xml_resp = resp.get_evalresp_response_for_frequencies(
+            frequencies=freqs, output=unit,
+            start_stage=1,
+            end_stage=1)
+        new_resp = resp.get_response(
+            frequencies=freqs, output=unit,
+            start_stage=1,
+            end_stage=1)
+        np.testing.assert_allclose(xml_resp.real, new_resp.real, rtol=1E-6)
+        np.testing.assert_allclose(xml_resp.imag, new_resp.imag, rtol=1E-6)
+
+        # Decimation stage.
+        xml_resp = resp.get_evalresp_response_for_frequencies(
+            frequencies=freqs, output=unit,
+            start_stage=2,
+            end_stage=2)
+        new_resp = resp.get_response(
+            frequencies=freqs, output=unit,
+            start_stage=2,
+            end_stage=2)
+        np.testing.assert_allclose(xml_resp.real, new_resp.real, rtol=1E-6)
+        np.testing.assert_allclose(xml_resp.imag, new_resp.imag, rtol=1E-6)
+
+        # Coefficients stage.
+        xml_resp = resp.get_evalresp_response_for_frequencies(
+            frequencies=freqs, output=unit,
+            start_stage=3,
+            end_stage=3)
+        new_resp = resp.get_response(
+            frequencies=freqs, output=unit,
+            start_stage=3,
+            end_stage=3)
+        # Amplitude if fully identical everywhere.
+        np.testing.assert_allclose(np.abs(xml_resp), np.abs(new_resp))
+        # Phase starts to differ slightly before Nyquist and quite a bit
+        # after. Evalresp appears to have some Gibb's artifacts and
+        # scipy's solution does look better.
+        np.testing.assert_allclose(
+            np.unwrap(np.angle(xml_resp))[:800],
+            np.unwrap(np.angle(new_resp))[:800],
+            rtol=1E-2, atol=2E-2)
+
+        # Full response.
+        xml_resp = resp.get_evalresp_response_for_frequencies(
+            frequencies=freqs, output=unit)
+        new_resp = resp.get_response(
+            frequencies=freqs, output=unit)
+
+        np.testing.assert_allclose(np.abs(xml_resp),
+                                   np.abs(new_resp), rtol=1E-5)
+        # Phase starts to differ slightly before Nyquist and quite a bit
+        # after. Evalresp appears to have some Gibb's artifacts and
+        # scipy's solution does look better.
+        np.testing.assert_allclose(
+            np.unwrap(np.angle(xml_resp))[:800],
+            np.unwrap(np.angle(new_resp))[:800],
+            rtol=1E-2, atol=2E-2)
+
+    def test_get_response_regression(self):
+        units = ["DISP", "VEL", "ACC"]
+        filenames = ["IRIS_single_channel_with_response", "XM.05", "IU_ANMO_00_BHZ", "AU.MEEK"]
+
+        for filename in filenames:
+            xml_filename = os.path.join(self.data_dir,
+                                        filename + os.path.extsep + "xml")
+            inv = read_inventory(xml_filename)
+            resp = inv[0][0][0].response
+
+            freqs = np.logspace(-2, 2, 1000)
+
+            for unit in units:
+                # Full response.
+                xml_resp = resp.get_evalresp_response_for_frequencies(
+                    frequencies=freqs, output=unit)
+                new_resp = resp.get_response(
+                    frequencies=freqs, output=unit)
+
+                np.testing.assert_allclose(np.abs(xml_resp),
+                                           np.abs(new_resp), rtol=1E-5)
+                # Phase starts to differ slightly before Nyquist and quite a
+                # bit after. Evalresp appears to have some Gibb's artifacts
+                # and scipy's solution does look better.
+                np.testing.assert_allclose(
+                    np.unwrap(np.angle(xml_resp))[:800],
+                    np.unwrap(np.angle(new_resp))[:800],
+                    rtol=1E-2, atol=2E-2)
+            print("passed:", xml_filename)
+
+    def test_get_response_per_stage(self):
+        filenames = ["IRIS_single_channel_with_response", "XM.05", "IU_ANMO_00_BHZ", "AU.MEEK"]
+        units = ["DISP", "VEL", "ACC"]
+
+        for filename in filenames:
+            xml_filename = os.path.join(self.data_dir,
+                                        filename + os.path.extsep + "xml")
+            inv = read_inventory(xml_filename)
+            resp = inv[0][0][0].response
+            freqs = np.logspace(-2, 2, 1000)
+            print(xml_filename, '\n', resp.response_stages)
+            for unit in units:
+                for x in range(1, len(resp.response_stages)):
+                    xml_resp = resp.get_evalresp_response_for_frequencies(
+                        frequencies=freqs, start_stage=x, end_stage=x, output=unit)
+                    new_resp = resp.get_response(
+                        frequencies=freqs, start_stage=x, end_stage=x, output=unit)
+
+                    np.testing.assert_allclose(np.abs(xml_resp),
+                                               np.abs(new_resp), rtol=1E-5)
+                    # Phase starts to differ slightly before Nyquist and quite a
+                    # bit after. Evalresp appears to have some Gibb's artifacts
+                    # and scipy's solution does look better.
+                    np.testing.assert_allclose(
+                        np.unwrap(np.angle(xml_resp))[:800],
+                        np.unwrap(np.angle(new_resp))[:800],
+                        rtol=1E-2, atol=2E-2)
+
+                    print("Succeeded with case for stage no.", x, "with units", unit)
+
+    def test_get_response_disp_vel_acc(self):
+        units = ["DISP", "VEL", "ACC"]
+        filename = "IRIS_single_channel_with_response"
+
+        xml_filename = os.path.join(self.data_dir,
+                                    filename + os.path.extsep + "xml")
+        inv = read_inventory(xml_filename)
+        resp = inv[0][0][0].response
+
+        freqs = np.logspace(-2, 2, 1000)
+
+        for unit in units:
+            # Full response.
+            xml_resp = resp.get_evalresp_response_for_frequencies(
+                frequencies=freqs, output=unit)
+            new_resp = resp.get_response(
+                frequencies=freqs, output=unit)
+
+            np.testing.assert_allclose(np.abs(xml_resp),
+                                       np.abs(new_resp), rtol=1E-5)
+            # Phase starts to differ slightly before Nyquist and quite a bit
+            # after. Evalresp appears to have some Gibb's artifacts and
+            # scipy's solution does look better.
+            np.testing.assert_allclose(
+                np.unwrap(np.angle(xml_resp))[:800],
+                np.unwrap(np.angle(new_resp))[:800],
+                rtol=1E-2, atol=2E-2)
+
+            # import matplotlib.pyplot as plt
+            # plt.subplot(411)
+            # plt.semilogx(freqs, np.abs(xml_resp), label="evalresp")
+            # plt.semilogx(freqs, np.abs(new_resp), label="scipy")
+            # plt.legend(loc=3)
+            # plt.subplot(412)
+            # plt.semilogx(freqs, np.abs(new_resp) - np.abs(xml_resp))
+            # plt.subplot(413)
+            #
+            # new_phase = np.angle(new_resp)
+            # xml_phase = np.angle(xml_resp)
+            #
+            # plt.semilogx(freqs, xml_phase, label="evalresp")
+            # plt.semilogx(freqs, new_phase, label="scipy")
+            # plt.legend(loc=3)
+            # plt.xlim(1E-2, 20.0)
+            # plt.subplot(414)
+            # plt.semilogx(freqs,xml_phase - new_phase)
+            # plt.show()
+
     def test_evalresp_with_output_from_seed(self):
         """
         The StationXML file has been converted to SEED with the help of a tool
@@ -200,10 +378,10 @@ class ResponseTestCase(unittest.TestCase):
         zeros = [2 + 3j, 2, 3j]
         stage = PolesZerosResponseStage(
             1, 1, 1, "", "", "LAPLACE (HERTZ)", 1, zeros, poles)
-        self.assertEqual(type(stage.zeros[0]), ComplexWithUncertainties)
-        self.assertEqual(type(stage.poles[0]), ComplexWithUncertainties)
-        self.assertEqual(stage.poles, poles)
-        self.assertEqual(stage.zeros, zeros)
+        self.assertEqual(ComplexWithUncertainties, type(stage.zeros[0]))
+        self.assertEqual(ComplexWithUncertainties, type(stage.poles[0]))
+        self.assertEqual(poles, stage.poles)
+        self.assertEqual(zeros, stage.zeros)
 
     def test_response_list_stage(self):
         """
@@ -341,7 +519,7 @@ class ResponseTestCase(unittest.TestCase):
                                  stage_gain_frequency=5.0,
                                  normalization_frequency=5.0,
                                  normalization_factor=1.070401)
-        paz_resp = resp.get_evalresp_response(.1, 2**6, output='VEL')
+        paz_resp = resp.get_response_for_window_size(.1, 2 ** 6, output='VEL')
         np.testing.assert_allclose(paz_resp, loaded_resp)
 
     def test_str_method_of_the_polynomial_response_stage(self):
@@ -508,8 +686,8 @@ class ResponseTestCase(unittest.TestCase):
         """
         inv = read_inventory(os.path.join(self.data_dir, "IM_I53H1_BDF.xml"))
         self.assertEqual(
-            inv[0][0][0].response.get_evalresp_response_for_frequencies([0.0]),
-            0.0 + 0.0j)
+            0.0 + 0.0j,
+            inv[0][0][0].response.get_evalresp_response_for_frequencies([0.0]))
         np.testing.assert_allclose(
             inv[0][0][0].response.get_evalresp_response_for_frequencies(
                 [0.1, 1.0, 10.0]),
