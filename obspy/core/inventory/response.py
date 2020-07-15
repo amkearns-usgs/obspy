@@ -177,6 +177,7 @@ class ResponseStage(ComparingObject):
     def _repr_pretty_(self, p, cycle):
         p.text(str(self))
 
+
     def get_response(self, frequencies, fast=True):
         """
         :param frequencies: Frequency range to get resp curve over
@@ -184,6 +185,7 @@ class ResponseStage(ComparingObject):
                      get_response-functions for other stage-types.
         :return: The curve describing this response stage
         """
+
         # if a response stage isn't a subclass then it's likely a gain stage.
         return np.ones_like(frequencies) * self.stage_gain
 
@@ -342,13 +344,13 @@ class PolesZerosResponseStage(ResponseStage):
             raise ValueError(msg)
 
     def get_response(self, frequencies, fast=True):
+
         """
         Produce the response curve from this stage's data for a given
         range of frequencies
         :param frequencies: Frequency range to get resp curve over
         :param fast: Indicates whether to speed up calculation through
             interpolation.
-        :return: The curve describing this response stage
         """
         # Has to be imported here for now to avoid circular imports.
         from obspy.signal.invsim import paz_to_freq_resp
@@ -551,12 +553,15 @@ class CoefficientsTypeResponseStage(ResponseStage):
             raise ValueError(msg)
 
     def get_response(self, frequencies, fast=True):
+
         """
         Produce the response curve from this coefficient
         response stage for a range of frequencies
         :param frequencies: Frequency range to get resp curve over
+
         :param fast: Indicates whether to speed up calculation through
             interpolation.
+
         :return: The curve describing this response stage
         """
         # Decimation blockette, e.g. gain only!
@@ -566,6 +571,7 @@ class CoefficientsTypeResponseStage(ResponseStage):
         sr = self.decimation_input_sample_rate
         frequencies = frequencies / sr * np.pi * 2.0
 
+
         # Check if interpolation is required so save time for long traces.
         if len(frequencies) > 10000 and fast:
             resp_frequencies = np.linspace(frequencies[0], frequencies[-1],
@@ -573,12 +579,14 @@ class CoefficientsTypeResponseStage(ResponseStage):
         else:
             resp_frequencies = frequencies
 
+
         # While most cases we expect this to represent a Bkt. 54 and
         # thus not have a denominator, if the transfer function is
         # digital, this may not be the case
         if self.cf_transfer_function_type == "DIGITAL":
             if len(self.denominator) == 0:
                 resp = scipy.signal.freqz(b=self.numerator,
+
                                           a=[1.], worN=resp_frequencies)[1]
 
                 gain_freq_amp = np.abs(scipy.signal.freqz(
@@ -593,6 +601,7 @@ class CoefficientsTypeResponseStage(ResponseStage):
 
                 # rename to be concise and match conventions
                 w = resp_frequencies
+
 
                 resp = np.zeros_like(w) + 0j
                 for idx, num in enumerate(self.numerator):
@@ -610,15 +619,19 @@ class CoefficientsTypeResponseStage(ResponseStage):
         elif self.cf_transfer_function_type == "ANALOG (RADIANS/SECOND)":
             # XXX: Untested so far!
             resp = scipy.signal.freqs(
+
                 b=self.numerator, a=[1.0], worN=resp_frequencies
                 / (np.pi * 2.0))[1]
+
             gain_freq_amp = np.abs(scipy.signal.freqs(
                 b=self.numerator, a=[1.0],
                 worN=[self.stage_gain_frequency / (np.pi * 2.0)])[1])
         elif self.cf_transfer_function_type == "ANALOG (HERTZ)":
             # XXX: Untested so far!
             resp = scipy.signal.freqs(
+
                 b=self.numerator, a=[1.0], worN=resp_frequencies)[1]
+
             gain_freq_amp = np.abs(scipy.signal.freqs(
                 b=self.numerator, a=[1.0],
                 worN=[self.stage_gain_frequency])[1])
@@ -651,6 +664,7 @@ class CoefficientsTypeResponseStage(ResponseStage):
             final_resp = np.zeros_like(frequencies) + 0j
         else:
             final_resp = np.empty_like(resp)
+
         final_resp.real = amp * np.cos(phase)
         final_resp.imag = amp * np.sin(phase)
 
@@ -820,6 +834,7 @@ class FIRResponseStage(ResponseStage):
             new_values.append(x)
         self._coefficients = new_values
 
+
     def get_response(self, frequencies, fast=True):
         """
         Given Computes the
@@ -827,6 +842,7 @@ class FIRResponseStage(ResponseStage):
         :param fast: Indicates whether to speed up calculation through
             interpolation.
         """
+
         # Decimation blockette, e.g. gain only!
         if not len(self._coefficients):
             return np.ones_like(frequencies) * self.stage_gain
@@ -840,6 +856,7 @@ class FIRResponseStage(ResponseStage):
             coefficients = self._coefficients
         sr = self.decimation_input_sample_rate
         frequencies = frequencies / sr * np.pi * 2.0
+
         # Compute response for a limited number of frequencies and interpolate
         # inbetween - 10000 appears fine for high precision and speed.
         if len(frequencies) > 10000 and fast:
@@ -984,6 +1001,7 @@ class Response(ComparingObject):
                            "volts", "counts", "tesla", "pressure",
                            "temperature"])
 
+
     def __init__(self, resource_id=None, instrument_sensitivity=None,
                  instrument_polynomial=None, response_stages=None):
         """
@@ -1066,12 +1084,15 @@ class Response(ComparingObject):
             return self.core_unit_enum.pressure
         elif unit in ("CELSIUS",):
             return self.core_unit_enum.temperature
+
         else:
             raise ValueError("Unknown unit '%s'." % unit)
 
     def get_response_for_window_size(self, t_samp, nfft, output="VEL",
+
                                      start_stage=None, end_stage=None,
                                      fast=True):
+
         """
         Returns frequency response and corresponding frequencies for
         the given sample rate delta and FFT window size
@@ -1115,6 +1136,7 @@ class Response(ComparingObject):
 
     def get_response(self, frequencies, output="velocity", start_stage=None,
                      end_stage=None, fast=True):
+
         """
         Returns the frequency response for given frequencies.
         :type frequencies: list of float
@@ -1133,10 +1155,12 @@ class Response(ComparingObject):
         :type end_stage: int, optional
         :param end_stage: Stage sequence number of last stage that will be
             used (disregarding all later stages).
+
         :type fast: bool
         :param fast: When set to True (default), then the calculation of the
             response for a large number of frequencies is sped up through
             interpolation. Relevant for traces with >10000 samples.
+
         :rtype: :class:`numpy.ndarray`
         :returns: frequency response at requested frequencies
         """
@@ -1161,6 +1185,7 @@ class Response(ComparingObject):
         stages = self.response_stages[slice(start_stage, end_stage)]
         # map 0j here to ensure the curve is complex values
         # which it may not be if we start on a gain stage
+
         resp = stages[0].get_response(frequencies=frequencies, fast=fast) + 0j
         for stage in stages[1:]:
             try:
@@ -1173,13 +1198,16 @@ class Response(ComparingObject):
         if start_stage == 0 and end_stage is None:
             f = np.array([self.instrument_sensitivity.frequency])
             stages = self.response_stages[slice(start_stage, end_stage)]
+
             ref = stages[0].get_response(frequencies=f, fast=fast)
             for stage in stages[1:]:
                 ref *= stage.get_response(frequencies=f, fast=fast)
+
             resp *= self.instrument_sensitivity.value / np.abs(ref[0])
 
         # By now the response is in the input units of the first stage.
         diff_and_int_map = {
+
             # Displacement -> velocity - acceleration.
             self.core_unit_enum.displacement: 0,
             self.core_unit_enum.velocity: 1,
@@ -1188,6 +1216,7 @@ class Response(ComparingObject):
             self.core_unit_enum.volts: 1,
             self.core_unit_enum.temperature: 0,
             }
+
         unit_type = self._get_unit_type(self.response_stages[0].input_units)
         if unit_type not in diff_and_int_map:
             raise ValueError("Cannot convert %s to %s." % (unit_type, output))

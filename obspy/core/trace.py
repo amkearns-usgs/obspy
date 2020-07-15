@@ -2884,6 +2884,7 @@ seismometer_correction_simulation.html#using-a-resp-file>`_.
                                                   output=output, fast=fast,
                                                   **kwargs)
 
+
         if plot:
             ax1.loglog(freqs, np.abs(data), color=color1, zorder=9)
 
